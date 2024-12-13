@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const session = require('express-session');
 const fs = require('fs');
 const fetch = require('node-fetch');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 app.use(express.json());
@@ -15,12 +16,18 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 24 * 60 * 60, // 1 day
+        autoRemove: 'native',
+        touchAfter: 24 * 3600 // time period in seconds
+    }),
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        httpOnly: true
-    },
-    store: new session.MemoryStore()
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        httpOnly: true,
+        sameSite: 'lax'
+    }
 }));
 
 // MongoDB connection with retry logic
