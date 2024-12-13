@@ -171,7 +171,9 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.location.href = '/';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 500);
                 } else {
                     errorMessage.style.display = 'block';
                     form.classList.add('shake');
