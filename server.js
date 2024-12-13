@@ -18,17 +18,28 @@ app.use(session({
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
-        ttl: 24 * 60 * 60, // 1 day
+        ttl: 24 * 60 * 60,
         autoRemove: 'native',
-        touchAfter: 24 * 3600 // time period in seconds
+        touchAfter: 24 * 3600,
+        collectionName: 'sessions'
     }),
+    name: 'sessionId',
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        maxAge: 24 * 60 * 60 * 1000,
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined
     }
 }));
+
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,UPDATE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
+    next();
+});
 
 // MongoDB connection with retry logic
 const connectWithRetry = async () => {
@@ -102,7 +113,13 @@ app.post('/login', (req, res) => {
     const { password } = req.body;
     if (password === process.env.DEFAULT_PASSWORD) {
         req.session.isLoggedIn = true;
-        res.json({ success: true });
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.json({ success: false, message: 'Session error' });
+            }
+            res.json({ success: true });
+        });
     } else {
         res.json({ success: false, message: 'Invalid password!' });
     }
@@ -341,17 +358,12 @@ app.get('/:uniqueId', async (req, res) => {
 
 // Login check route
 app.get('/check-login', (req, res) => {
-    try {
-        res.json({ 
-            isLoggedIn: !!req.session.isLoggedIn,
-            timestamp: Date.now()
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            isLoggedIn: false,
-            error: 'Server error'
-        });
-    }
+    console.log('Session:', req.session);
+    console.log('IsLoggedIn:', req.session.isLoggedIn);
+    res.json({ 
+        isLoggedIn: !!req.session.isLoggedIn,
+        timestamp: Date.now()
+    });
 });
 
 // Logout route (প্রয়োজনে)
